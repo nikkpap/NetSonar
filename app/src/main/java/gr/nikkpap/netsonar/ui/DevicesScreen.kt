@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Info
@@ -143,6 +144,7 @@ fun DevicesScreen(vm: MainViewModel) {
                 } else if (vm.identifying) {
                     Text(s.identifying, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                vm.scanError?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
             }
         }
         item {
@@ -188,7 +190,7 @@ private fun Radar(devices: List<Device>, scanning: Boolean, progress: Float, onC
     val sweepAlpha by animateFloatAsState(if (scanning) 1f else 0.25f, tween(600), label = "sweep")
     val primary = cs.primary
 
-    Box(Modifier.fillMaxWidth().aspectRatio(1f).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp).aspectRatio(1f), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val r = size.minDimension / 2f
             val c = center
@@ -218,7 +220,8 @@ private fun Radar(devices: List<Device>, scanning: Boolean, progress: Float, onC
         }
         Box(
             Modifier
-                .fillMaxSize(0.38f)
+                .fillMaxSize(0.36f)
+                .aspectRatio(1f)
                 .scale(if (scanning) 1f else pulse)
                 .shadow(28.dp, CircleShape, ambientColor = primary, spotColor = primary)
                 .clip(CircleShape)
@@ -238,6 +241,7 @@ private fun Radar(devices: List<Device>, scanning: Boolean, progress: Float, onC
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DeviceRow(d: Device, s: Strings, onClick: () -> Unit) {
     val lc = linkColor(d.link)
@@ -246,33 +250,64 @@ private fun DeviceRow(d: Device, s: Strings, onClick: () -> Unit) {
         d.isSelf -> Accent.pink
         else -> lc
     }
-    GlassCard(Modifier.fillMaxWidth(), onClick = onClick, padding = 14.dp) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    GlassCard(
+        Modifier.fillMaxWidth(), onClick = onClick, padding = 14.dp,
+        borderBrush = Brush.linearGradient(listOf(kc.copy(alpha = 0.7f), kc.copy(alpha = 0.08f))),
+    ) {
+        // header
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBubble(kindIcon(d.kind), kc, 46.dp)
+            IconBubble(kindIcon(d.kind), kc, 48.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        deviceTitle(d, s), fontWeight = FontWeight.Bold, fontSize = 15.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (d.isGateway) { Spacer(Modifier.width(6.dp)); Pill(s.router, Accent.green) }
-                    if (d.isSelf) { Spacer(Modifier.width(6.dp)); Pill(s.thisDevice, Accent.pink) }
-                }
-                Text(d.ip, fontFamily = Mono, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
-                val sub = buildString {
-                    append(d.mac ?: "MAC —")
-                    if (!d.vendor.isNullOrBlank() && d.vendor != deviceTitle(d, s)) append("  ·  ").append(d.vendor)
-                    else if (d.mac != null && NetUtil.isRandomMac(d.mac)) append("  ·  ").append(s.randomMac)
-                }
-                Text(sub, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = Mono)
+                Text(deviceTitle(d, s), fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(d.ip, fontFamily = Mono, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 15.sp)
             }
-            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Pill(linkLabel(d.link, s), lc, linkIcon(d.link))
-                d.latencyMs?.let { if (!d.isSelf) Pill("$it ms", if (it < 50) Accent.green else if (it < 200) Accent.amber else Accent.red) }
+                if (!d.isSelf) d.latencyMs?.let { Pill("$it ms", if (it < 50) Accent.green else if (it < 200) Accent.amber else Accent.red) }
             }
         }
+        Spacer(Modifier.size(10.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)))
+        Spacer(Modifier.size(8.dp))
+        // full details
+        val vend = when {
+            !d.vendor.isNullOrBlank() -> d.vendor
+            d.mac != null && NetUtil.isRandomMac(d.mac) -> s.randomMac
+            else -> "—"
+        }
+        DetailLine(s.mac, d.mac ?: s.macHidden, mono = true, muted = d.mac == null)
+        DetailLine(s.vendor, vend, muted = vend == "—")
+        DetailLine(s.hostname, d.hostname ?: "—", muted = d.hostname == null)
+        DetailLine(s.type, kindLabel(d.kind, s))
+        DetailLine(s.seenVia, if (d.link == Link.LAN) s.ethernet else "${s.wifi} ${linkLabel(d.link, s)}")
+        Spacer(Modifier.size(6.dp))
+        if (d.openPorts.isEmpty()) {
+            Text("${s.openPorts}: —", fontSize = 12.sp, color = muted)
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                d.openPorts.forEach { p -> Pill("$p ${Scanner.PORT_NAMES[p] ?: ""}".trim(), Accent.violet) }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (d.isGateway) Pill(s.router, Accent.green)
+            if (d.isSelf) Pill(s.thisDevice, Accent.pink)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Rounded.ChevronRight, null, tint = muted, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun DetailLine(label: String, value: String, mono: Boolean = false, muted: Boolean = false) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
+        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.4f))
+        Text(
+            value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = if (mono) Mono else null,
+            color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(0.6f), textAlign = TextAlign.End,
+        )
     }
 }
 

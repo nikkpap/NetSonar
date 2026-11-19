@@ -144,14 +144,14 @@ private fun TileRow(row: List<Tile>, copy: (String) -> Unit) {
 private fun ifaceTiles(i: IfaceInfo, snapForWifi: NetSnapshot?, s: Strings, c: Color): List<Tile> = buildList {
     add(Tile(Icons.Rounded.PhoneAndroid, s.localIp, i.ipv4 ?: s.unavailable, c, i.ipv4))
     add(Tile(Icons.Rounded.Router, s.gateway, i.gateway ?: s.unavailable, Accent.green, i.gateway))
-    add(Tile(Icons.Rounded.AccountTree, s.subnet, "${NetUtil.prefixToMask(i.prefix)}\n/${i.prefix}", Accent.blue, NetUtil.prefixToMask(i.prefix)))
+    add(Tile(Icons.Rounded.AccountTree, s.subnet, "${NetUtil.prefixToMask(i.prefix)}  (/${i.prefix})", Accent.blue, NetUtil.prefixToMask(i.prefix)))
     add(Tile(Icons.Rounded.Dns, s.dns, i.dns.take(3).joinToString("\n").ifEmpty { s.unavailable }, Accent.violet, i.dns.joinToString(", ").ifEmpty { null }))
     add(Tile(Icons.Rounded.Fingerprint, s.myMac, i.mac ?: s.macHidden, Accent.pink, i.mac))
     val wf = snapForWifi?.wifi
     if (wf != null) {
         add(Tile(Icons.Rounded.Router, s.routerMac, wf.bssid ?: s.unavailable, Accent.amber, wf.bssid))
         add(Tile(Icons.Rounded.Wifi, s.band, wf.link?.let { linkLabel(it, s) } ?: "—", c, null))
-        add(Tile(Icons.Rounded.GraphicEq, s.channel, "${wf.channel}  ·  ${wf.freq} MHz", c, null))
+        add(Tile(Icons.Rounded.GraphicEq, s.channel, "${wf.channel} (${wf.freq} MHz)", c, null))
         add(Tile(Icons.Rounded.Speed, s.linkSpeed, if (wf.linkSpeed > 0) "${wf.linkSpeed} Mbps" else "—", Accent.green, null))
         add(Tile(Icons.Rounded.Memory, s.standard, wf.standard ?: "—", Accent.blue, null))
     }

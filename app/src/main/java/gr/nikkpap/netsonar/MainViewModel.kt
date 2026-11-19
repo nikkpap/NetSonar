@@ -146,6 +146,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var hasScanned by mutableStateOf(false)
         private set
+    var scanError by mutableStateOf<String?>(null)
+        private set
     private var scanJob: Job? = null
 
     /** @return false when there is no Wi-Fi / LAN to scan. */
@@ -162,7 +164,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun startScan(targets: List<IfaceInfo>) {
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
-            scanning = true; identifying = false; progress = 0f; hasScanned = true
+            scanning = true; identifying = false; progress = 0f; hasScanned = true; scanError = null
             devices.clear()
             val totals = IntArray(targets.size)
             val dones = IntArray(targets.size)
@@ -204,6 +206,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 applyArp(scanner.readArp(), targets)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                scanError = e.javaClass.simpleName + ": " + (e.message ?: "")
             } finally {
                 scanning = false
             }

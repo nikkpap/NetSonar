@@ -4,6 +4,7 @@ import android.net.Network
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +36,8 @@ data class Enrichment(val hostname: String?, val mac: String?)
 class Scanner {
 
     companion object {
-        val PORTS = intArrayOf(80, 443, 22, 445, 139, 62078, 8080, 554, 9100, 631, 3389, 7000, 8008, 21, 53, 5000)
+        val QUICK_PORTS = intArrayOf(80, 443, 22, 445, 139, 53, 62078, 8080)
+        val SLOW_PORTS = intArrayOf(554, 9100, 631, 3389, 7000, 8008, 21, 5000)
         val PORT_NAMES = mapOf(
             21 to "FTP", 22 to "SSH", 53 to "DNS", 80 to "HTTP", 139 to "NetBIOS", 443 to "HTTPS",
             445 to "SMB", 554 to "RTSP", 631 to "IPP", 3389 to "RDP", 5000 to "UPnP/NAS",
@@ -69,6 +71,9 @@ class Scanner {
 
     private val dnsPool = Executors.newCachedThreadPool()
 
+    /** Own pool: socket probes block, Dispatchers.IO (64 threads) would make the sweep crawl. */
+    private val io = Executors.newFixedThreadPool(224).asCoroutineDispatcher()
+
     /** Sweeps the subnet of [iface] and emits every live host. */
     fun scan(iface: IfaceInfo): Flow<ScanEvent> = channelFlow {
         val ip = iface.ipv4
@@ -94,7 +99,7 @@ class Scanner {
             )
         )
         targets.map { h ->
-            launch(Dispatchers.IO) {
+            launch {
                 sem.withPermit {
                     val hip = NetUtil.longToIp(h)
                     val r = probe(hip, iface.network, netIf)
@@ -115,33 +120,39 @@ class Scanner {
 
     private enum class Tcp { OPEN, REFUSED, NONE }
 
-    /** @return (latency ms, open ports) or null if the host looks dead. */
+    /**
+     * Phase 1: ping + a few very common ports → is the host alive?
+     * Phase 2 (alive hosts only): the remaining service ports.
+     * @return (latency ms, open ports) or null if the host looks dead.
+     */
     private suspend fun probe(ip: String, network: Network?, netIf: NetworkInterface?): Pair<Int, List<Int>>? = coroutineScope {
-        val addr = InetAddress.getByName(ip) // literal IP → no DNS
+        val addr = InetAddress.getByAddress(ip.split('.').map { it.toInt().toByte() }.toByteArray())
         val t0 = System.nanoTime()
-        val ping = async(Dispatchers.IO) {
+        val ping = async(io) {
             try {
-                val ok = if (netIf != null) addr.isReachable(netIf, 0, 650) else addr.isReachable(650)
+                val ok = if (netIf != null) addr.isReachable(netIf, 0, 700) else addr.isReachable(700)
                 if (ok) ((System.nanoTime() - t0) / 1_000_000).toInt() else -1
             } catch (_: Exception) { -1 }
         }
-        val res = PORTS.map { p -> async(Dispatchers.IO) { p to tcp(addr, p, network) } }.awaitAll()
-        val open = res.filter { it.second.first == Tcp.OPEN }.map { it.first }.sorted()
-        val responsive = res.filter { it.second.first != Tcp.NONE }
+        val first = QUICK_PORTS.map { p -> async(io) { p to tcp(addr, p, network, 500) } }.awaitAll()
         val pingMs = ping.await()
-        if (responsive.isEmpty() && pingMs < 0) return@coroutineScope null
-        val tcpMs = responsive.minOfOrNull { it.second.second } ?: Int.MAX_VALUE
+        val alive1 = first.any { it.second.first != Tcp.NONE }
+        if (!alive1 && pingMs < 0) return@coroutineScope null
+        val second = SLOW_PORTS.map { p -> async(io) { p to tcp(addr, p, network, 600) } }.awaitAll()
+        val res = first + second
+        val open = res.filter { it.second.first == Tcp.OPEN }.map { it.first }.sorted()
+        val tcpMs = res.filter { it.second.first != Tcp.NONE }.minOfOrNull { it.second.second } ?: Int.MAX_VALUE
         val lat = if (pingMs >= 0) minOf(pingMs, tcpMs) else tcpMs
         lat.coerceAtMost(9999) to open
     }
 
-    private fun tcp(addr: InetAddress, port: Int, network: Network?): Pair<Tcp, Int> {
+    private fun tcp(addr: InetAddress, port: Int, network: Network?, timeout: Int): Pair<Tcp, Int> {
         val s = Socket()
         val t0 = System.nanoTime()
         fun ms() = ((System.nanoTime() - t0) / 1_000_000).toInt()
         return try {
             if (network != null) try { network.bindSocket(s) } catch (_: Exception) { }
-            s.connect(InetSocketAddress(addr, port), 450)
+            s.connect(InetSocketAddress(addr, port), timeout)
             Tcp.OPEN to ms()
         } catch (e: ConnectException) {
             val m = e.message ?: ""

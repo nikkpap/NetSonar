@@ -1,6 +1,7 @@
-NetSonar v1.0.0 — first release
-- Network dashboard: local IP, gateway, public IP (WAN), ISP, DNS, subnet, MAC, BSSID, band, channel, link speed, Wi-Fi standard
-- Device scanner with live radar: IP, name, MAC, manufacturer, open ports, response time
-- Filters: All / 2.4 GHz / 5 GHz / 6 GHz / LAN
-- Nearby Wi-Fi networks with channel map and best-channel advice
-- English / Ελληνικά, dark / light theme, OTA updates from GitHub
+NetSonar v1.0.1
+- Fixed: dark text on dark background (all texts now readable)
+- Fixed: light theme colours – deeper accents, readable on white
+- Round SCAN button
+- Much faster device scan (~8 s instead of ~40 s), more reliable discovery
+- Device list now shows full details: MAC, manufacturer, name, type, connection, open ports, response time
+- Cleaner Network tiles (subnet, channel)

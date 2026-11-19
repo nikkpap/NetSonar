@@ -210,7 +210,7 @@ fun InfoTile(
     label: String,
     value: String,
     color: Color,
-    mono: Boolean = true,
+    mono: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     GlassCard(modifier, onClick = onClick, padding = 14.dp) {
@@ -221,8 +221,8 @@ fun InfoTile(
         }
         Spacer(Modifier.size(6.dp))
         Text(
-            value, fontFamily = if (mono) Mono else null, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onSurface, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            value, fontFamily = if (mono) Mono else null, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface, maxLines = 4, overflow = TextOverflow.Ellipsis,
         )
     }
 }

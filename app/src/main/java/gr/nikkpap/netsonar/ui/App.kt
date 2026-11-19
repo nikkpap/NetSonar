@@ -46,6 +46,7 @@ fun NetSonarApp(vm: MainViewModel, requestPerms: () -> Unit) {
         AppBackground()
         Scaffold(
             containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
             bottomBar = {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)) {
                     tabs.forEachIndexed { i, (icon, label) ->
