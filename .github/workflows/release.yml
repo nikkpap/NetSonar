@@ -1,0 +1,68 @@
+name: Build & Release APK
+
+# Every push to main: if versionName in app/build.gradle.kts has no GitHub Release yet,
+# build a signed APK and publish it as Release "vX.Y.Z" → the app's OTA picks it up.
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: ver
+        run: echo "version=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+
+      - name: Already released?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.ver.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; echo "v${{ steps.ver.outputs.version }} already released – nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.check.outputs.exists == 'false'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.check.outputs.exists == 'false'
+
+      - name: Build signed release APK
+        if: steps.check.outputs.exists == 'false'
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          NS_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          NS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          NS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export NS_STORE_FILE="$RUNNER_TEMP/release.jks"
+          else
+            echo "::error::Secret KEYSTORE_BASE64 is missing. Add the 4 secrets from GITHUB_SECRETS.txt, then Actions → Build & Release APK → Run workflow."
+            exit 1
+          fi
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Publish GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: NetSonar v${{ steps.ver.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: app/build/outputs/apk/release/*.apk
