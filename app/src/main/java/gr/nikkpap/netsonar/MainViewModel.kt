@@ -148,6 +148,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var scanError by mutableStateOf<String?>(null)
         private set
+    /** Small technical summary of the last scan, for troubleshooting. */
+    var scanInfo by mutableStateOf<String?>(null)
+        private set
     private var scanJob: Job? = null
 
     /** @return false when there is no Wi-Fi / LAN to scan. */
@@ -166,6 +169,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         scanJob = viewModelScope.launch {
             scanning = true; identifying = false; progress = 0f; hasScanned = true; scanError = null
             devices.clear()
+            scanner.resetStats(); scanInfo = null
+            val ifDesc = targets.joinToString(" + ") { "${it.name ?: "?"} ${it.ipv4}/${it.prefix} gw ${it.gateway ?: "-"}" }
             val totals = IntArray(targets.size)
             val dones = IntArray(targets.size)
             try {
@@ -206,6 +211,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 applyArp(scanner.readArp(), targets)
+                scanInfo = "$ifDesc · IPs ${totals.sum()} · ping ${scanner.pingHits.get()} · tcp ${scanner.tcpHits.get()} · ${scanner.arpInfo}" +
+                    (scanner.lastError?.let { " · err: $it" } ?: "")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {

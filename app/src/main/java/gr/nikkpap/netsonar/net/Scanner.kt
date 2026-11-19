@@ -71,6 +71,13 @@ class Scanner {
 
     private val dnsPool = Executors.newCachedThreadPool()
 
+    // ---- diagnostics of the last scan (shown under the radar) ----
+    val pingHits = AtomicInteger(0)
+    val tcpHits = AtomicInteger(0)
+    @Volatile var lastError: String? = null
+    @Volatile var arpInfo: String = "-"
+    fun resetStats() { pingHits.set(0); tcpHits.set(0); lastError = null; arpInfo = "-" }
+
     /** Own pool: socket probes block, Dispatchers.IO (64 threads) would make the sweep crawl. */
     private val io = Executors.newFixedThreadPool(224).asCoroutineDispatcher()
 
@@ -137,6 +144,8 @@ class Scanner {
         val first = QUICK_PORTS.map { p -> async(io) { p to tcp(addr, p, network, 500) } }.awaitAll()
         val pingMs = ping.await()
         val alive1 = first.any { it.second.first != Tcp.NONE }
+        if (pingMs >= 0) pingHits.incrementAndGet()
+        if (alive1) tcpHits.incrementAndGet()
         if (!alive1 && pingMs < 0) return@coroutineScope null
         val second = SLOW_PORTS.map { p -> async(io) { p to tcp(addr, p, network, 600) } }.awaitAll()
         val res = first + second
@@ -156,8 +165,12 @@ class Scanner {
             Tcp.OPEN to ms()
         } catch (e: ConnectException) {
             val m = e.message ?: ""
-            if (m.contains("ECONNREFUSED") || m.contains("refused", ignoreCase = true)) Tcp.REFUSED to ms() else Tcp.NONE to 0
-        } catch (_: Exception) {
+            if (m.contains("ECONNREFUSED") || m.contains("refused", ignoreCase = true)) Tcp.REFUSED to ms()
+            else { if (!m.contains("EHOSTUNREACH") && !m.contains("ETIMEDOUT")) lastError = m.takeLast(90); Tcp.NONE to 0 }
+        } catch (e: java.net.SocketTimeoutException) {
+            Tcp.NONE to 0
+        } catch (e: Exception) {
+            lastError = (e.javaClass.simpleName + ": " + (e.message ?: "")).take(90)
             Tcp.NONE to 0
         } finally {
             try { s.close() } catch (_: Exception) { }
@@ -225,6 +238,7 @@ class Scanner {
                     map[p[0]] = p[3].uppercase()
             }
         } catch (_: Exception) { }
+        if (map.isNotEmpty()) arpInfo = "arp ${map.size}"
         if (map.isEmpty()) try {
             val pr = Runtime.getRuntime().exec(arrayOf("ip", "neigh", "show"))
             pr.inputStream.bufferedReader().readLines().forEach { l ->
@@ -233,7 +247,8 @@ class Scanner {
                 if (i > 0 && i + 1 < p.size && NetUtil.isIpv4(p[0])) map[p[0]] = p[i + 1].uppercase()
             }
             pr.destroy()
-        } catch (_: Exception) { }
+            arpInfo = "neigh ${map.size}"
+        } catch (e: Exception) { arpInfo = "neigh ✗" }
         map
     }
 }

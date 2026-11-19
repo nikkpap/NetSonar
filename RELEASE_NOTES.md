@@ -1,7 +1,4 @@
-NetSonar v1.0.1
-- Fixed: dark text on dark background (all texts now readable)
-- Fixed: light theme colours – deeper accents, readable on white
-- Round SCAN button
-- Much faster device scan (~8 s instead of ~40 s), more reliable discovery
-- Device list now shows full details: MAC, manufacturer, name, type, connection, open ports, response time
-- Cleaner Network tiles (subnet, channel)
+NetSonar v1.0.2
+- Device discovery: also reads Android's neighbour (ARP) table → finds silent devices and shows their MAC addresses
+- Small diagnostic line under the radar after each scan (interface, IPs checked, ping/TCP replies)
+- Includes all v1.0.1 fixes: readable colours (dark + light), round SCAN button, faster scan, full-detail device list

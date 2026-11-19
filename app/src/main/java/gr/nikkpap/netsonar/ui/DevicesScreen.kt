@@ -144,6 +144,7 @@ fun DevicesScreen(vm: MainViewModel) {
                 } else if (vm.identifying) {
                     Text(s.identifying, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (!vm.scanning) vm.scanInfo?.let { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, fontFamily = Mono) }
                 vm.scanError?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
             }
         }
