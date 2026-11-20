@@ -42,6 +42,7 @@ class Strings(
     val macLookup: String, val macLookupSub: String, val macLookupHint: String, val lookup: String,
     val macNotFound: String, val invalidMac: String, val source: String, val country: String,
     val randomMacInfo: String, val multicastMac: String,
+    val model: String, val services: String,
 )
 
 val EN = Strings(
@@ -98,6 +99,7 @@ val EN = Strings(
     source = "Source", country = "Country",
     randomMacInfo = "Private (random) MAC: the device hides its real MAC for privacy (phones, tablets, laptops). The manufacturer cannot be known.",
     multicastMac = "Multicast / group address, not a single device",
+    model = "Model", services = "Services",
 )
 
 val GR = Strings(
@@ -154,6 +156,7 @@ val GR = Strings(
     source = "Πηγή", country = "Χώρα",
     randomMacInfo = "Ιδιωτική (τυχαία) MAC: η συσκευή κρύβει την πραγματική της MAC για ιδιωτικότητα (κινητά, tablet, laptop). Ο κατασκευαστής δεν μπορεί να βρεθεί.",
     multicastMac = "Διεύθυνση multicast / ομάδας, όχι μία συσκευή",
+    model = "Μοντέλο", services = "Υπηρεσίες",
 )
 
 val LocalStrings = staticCompositionLocalOf { EN }

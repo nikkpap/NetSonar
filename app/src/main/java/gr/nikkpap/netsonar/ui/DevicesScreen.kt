@@ -92,6 +92,7 @@ import kotlin.math.sin
 fun deviceTitle(d: Device, s: Strings): String = when {
     d.isSelf -> d.hostname ?: s.thisDevice
     !d.hostname.isNullOrBlank() -> d.hostname
+    !d.model.isNullOrBlank() && !d.isGateway -> d.model
     !d.vendor.isNullOrBlank() -> d.vendor
     d.isGateway -> s.router
     else -> s.unknownDevice
@@ -314,6 +315,8 @@ private fun DeviceRow(d: Device, s: Strings, onClick: () -> Unit) {
         DetailLine(s.mac, d.mac ?: s.macHidden, mono = true, muted = d.mac == null)
         DetailLine(s.vendor, vend, muted = vend == "—")
         DetailLine(s.hostname, d.hostname ?: "—", muted = d.hostname == null)
+        if (d.model != null) DetailLine(s.model, d.model)
+        if (d.services.isNotEmpty()) DetailLine(s.services, d.services.take(6).joinToString(", "))
         DetailLine(s.type, kindLabel(d.kind, s))
         DetailLine(s.seenVia, if (d.link == Link.LAN) s.ethernet else "${s.wifi} ${linkLabel(d.link, s)}")
         Spacer(Modifier.size(6.dp))
@@ -377,6 +380,8 @@ private fun DeviceSheet(d: Device, s: Strings, onDismiss: () -> Unit) {
                     else -> "—"
                 }
                 add(Triple(s.vendor, vend, d.vendor != null))
+                if (d.model != null) add(Triple(s.model, d.model, true))
+                if (d.services.isNotEmpty()) add(Triple(s.services, d.services.joinToString(", "), false))
                 add(Triple(s.type, kindLabel(d.kind, s), false))
                 add(Triple(s.latency, d.latencyMs?.let { "$it ms" } ?: "—", false))
                 add(Triple(s.seenVia, if (d.link == Link.LAN) s.ethernet else "${s.wifi} ${linkLabel(d.link, s)}", false))

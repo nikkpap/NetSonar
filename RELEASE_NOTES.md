@@ -1,4 +1,9 @@
-NetSonar v1.0.5
+NetSonar v1.0.6
+- Devices now tell their own name, model and manufacturer (mDNS/Bonjour + UPnP): TVs, Chromecast, iPhones/Macs, printers, NAS, smart-home…
+- Finds devices that don't answer ping/ports but announce themselves
+- MAC for AirPlay devices and NAS/Linux (announced by the device)
+- Router manufacturer from the Wi-Fi BSSID
+- New fields: Model, Services
 - Built-in IEEE manufacturer database (54,000 MAC prefixes, works offline) → instant manufacturer for every MAC
 - New MAC lookup tool (More tab): type a MAC → manufacturer, country, private/random MAC detection
 - Devices tab starts scanning automatically

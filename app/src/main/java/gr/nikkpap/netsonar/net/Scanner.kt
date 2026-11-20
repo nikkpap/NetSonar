@@ -50,11 +50,20 @@ class Scanner {
             if (d.isGateway) return DeviceKind.ROUTER
             if (d.isSelf) return DeviceKind.PHONE
             val p = d.openPorts.toSet()
+            val sv = d.services.joinToString(" ").lowercase()
+            fun sAny(vararg k: String) = k.any { it in sv }
             val v = (d.vendor ?: "").lowercase()
             val h = (d.hostname ?: "").lowercase()
             fun vAny(vararg k: String) = k.any { it in v }
             fun hAny(vararg k: String) = k.any { it in h }
             return when {
+                sAny("ipp", "printer", "pdl-datastream", "uscan", "scanner") -> DeviceKind.PRINTER
+                sAny("googlecast", "androidtvremote", "amzn-wplay", "mediarenderer", "nvstream") -> DeviceKind.TV
+                sAny("internetgatewaydevice", "wlanaccesspoint") -> DeviceKind.ROUTER
+                sAny("smb", "afpovertcp", "workstation", "ssh") -> DeviceKind.COMPUTER
+                sAny("companion-link") -> DeviceKind.PHONE
+                sAny("hap", "homekit", "esphomelib", "shelly", "matter", "miio", "mqtt") -> DeviceKind.IOT
+                sAny("airplay", "raop", "sonos", "spotify-connect", "daap") -> DeviceKind.TV
                 9100 in p || 631 in p || vAny("epson", "canon", "brother", "kyocera", "xerox", "lexmark", "ricoh") || hAny("printer", "print") -> DeviceKind.PRINTER
                 554 in p || vAny("hikvision", "dahua", "reolink", "ezviz", "axis comm") || hAny("cam", "ipc", "nvr") -> DeviceKind.CAMERA
                 8008 in p || vAny("roku", "lg electronics", "tcl", "hisense", "vestel", "sharp") || hAny("tv", "chromecast", "bravia", "firetv", "shield", "webos") -> DeviceKind.TV

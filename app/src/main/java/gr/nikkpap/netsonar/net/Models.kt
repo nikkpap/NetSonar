@@ -56,6 +56,9 @@ data class Device(
     val isGateway: Boolean = false,
     val isSelf: Boolean = false,
     val kind: DeviceKind = DeviceKind.UNKNOWN,
+    val model: String? = null,
+    val services: List<String> = emptyList(),
+    val macFromBssid: Boolean = false,
 ) {
     val key: String get() = "$link|$ip"
 }

@@ -218,6 +218,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 log("Neighbour table: ${scanner.arpInfo}")
                 applyArp(arp1, targets)
 
+                // names / models straight from the devices (mDNS-Bonjour + UPnP)
+                log("Asking devices for name & model (mDNS / UPnP)…")
+                for (t in targets) {
+                    val tl = t.link ?: Link.LAN
+                    val disc = try {
+                        gr.nikkpap.netsonar.net.Discovery.run(appCtx, t.network, devices.filter { it.link == tl && !it.isSelf }.map { it.ip })
+                    } catch (e: Exception) { log("Discovery error: ${e.message}"); emptyMap() }
+                    log("Discovery: ${disc.size} devices answered")
+                    for ((ip, di) in disc) {
+                        val base = t.ipv4 ?: continue
+                        if (!NetUtil.sameSubnet(ip, base, t.prefix) || ip == base) continue
+                        if (devices.none { it.ip == ip && it.link == tl }) {
+                            upsert(Device(ip, NetUtil.ipToLong(ip), tl, isGateway = ip == t.gateway))
+                            log("+ $ip (via mDNS/UPnP)")
+                        }
+                        val key = "$tl|$ip"
+                        val i = devices.indexOfFirst { it.key == key }
+                        if (i >= 0) {
+                            val cur = devices[i]
+                            val upd = cur.copy(
+                                hostname = di.bestName ?: cur.hostname,
+                                model = cur.model ?: di.model,
+                                vendor = cur.vendor ?: di.manufacturer,
+                                mac = cur.mac ?: di.mac,
+                                services = (cur.services + di.services).distinct(),
+                            )
+                            devices[i] = upd.copy(kind = Scanner.guessKind(upd))
+                        }
+                    }
+                }
+
                 // names + NetBIOS MACs
                 val netFor = targets.associate { (it.link ?: Link.LAN) to it.network }
                 val sem = Semaphore(12)
@@ -235,6 +266,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 applyArp(scanner.readArp(), targets)
+
+                // router manufacturer from the Wi-Fi BSSID (its own MAC is hidden by Android)
+                val bssid = snapshot?.wifi?.bssid
+                if (bssid != null && !NetUtil.isRandomMac(bssid)) {
+                    val gi = devices.indexOfFirst { it.isGateway && it.link != Link.LAN }
+                    if (gi >= 0 && devices[gi].vendor == null) {
+                        gr.nikkpap.netsonar.net.OuiDb.find(appCtx, bssid)?.let { devices[gi] = devices[gi].copy(vendor = it.first) }
+                    }
+                }
                 log("Done: ${devices.size} devices")
                 scanInfo = "$ifDesc · IPs ${totals.sum()} · ping ${scanner.pingHits.get()} · tcp ${scanner.tcpHits.get()} · ${scanner.arpInfo}" +
                     (scanner.lastError?.let { " · err: $it" } ?: "")
