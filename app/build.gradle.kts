@@ -24,8 +24,8 @@ android {
         applicationId = "gr.nikkpap.netsonar"
         minSdk = 24
         targetSdk = 29 // 29 = Android lets the app read the neighbour (ARP) table → all devices + MACs
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
     }
 
     signingConfigs {

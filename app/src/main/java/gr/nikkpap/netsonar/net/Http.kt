@@ -51,8 +51,14 @@ object Vendor {
     private val mutex = Mutex()
     private var last = 0L
 
+    /** Offline IEEE database first (instant, no internet), then macvendors.com. */
     suspend fun lookup(ctx: Context, mac: String): String? {
         if (NetUtil.isRandomMac(mac)) return null
+        OuiDb.find(ctx, mac)?.let { return it.first }
+        return lookupOnline(ctx, mac)
+    }
+
+    suspend fun lookupOnline(ctx: Context, mac: String): String? {
         val oui = mac.uppercase().replace(":", "").replace("-", "").take(6)
         if (oui.length < 6) return null
         mem[oui]?.let { return it.ifEmpty { null } }

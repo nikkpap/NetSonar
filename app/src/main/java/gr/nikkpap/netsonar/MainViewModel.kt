@@ -287,6 +287,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (i >= 0) devices[i] = f(devices[i])
     }
 
+    // ---------- MAC lookup tool ----------
+    var macResult by mutableStateOf<gr.nikkpap.netsonar.net.MacInfo?>(null)
+        private set
+    var macBusy by mutableStateOf(false)
+        private set
+    var macInvalid by mutableStateOf(false)
+        private set
+
+    fun lookupMac(input: String) {
+        if (gr.nikkpap.netsonar.net.OuiDb.normalize(input) == null) { macInvalid = true; macResult = null; return }
+        macInvalid = false; macBusy = true
+        viewModelScope.launch {
+            macResult = try { gr.nikkpap.netsonar.net.OuiDb.info(appCtx, input) } catch (_: Exception) { null }
+            macBusy = false
+        }
+    }
+
     // ---------- Wi-Fi scan ----------
     var aps by mutableStateOf<List<AccessPoint>>(emptyList())
         private set

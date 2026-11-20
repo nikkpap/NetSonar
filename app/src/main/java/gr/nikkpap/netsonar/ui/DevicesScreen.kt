@@ -393,6 +393,9 @@ private fun DeviceSheet(d: Device, s: Strings, onDismiss: () -> Unit) {
                     if (copyable) { Spacer(Modifier.width(6.dp)); Icon(Icons.Rounded.ContentCopy, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
+            if (d.mac != null && NetUtil.isRandomMac(d.mac)) {
+                Text(s.randomMacInfo, fontSize = 12.sp, color = Accent.amber, modifier = Modifier.padding(horizontal = 6.dp))
+            }
             Spacer(Modifier.size(10.dp))
             SectionLabel(s.openPorts)
             Spacer(Modifier.size(6.dp))

@@ -39,6 +39,9 @@ class Strings(
     val about: String, val developer: String, val sourceCode: String, val howTitle: String, val howText: String,
     val kRouter: String, val kPhone: String, val kComputer: String, val kTv: String, val kPrinter: String,
     val kCamera: String, val kIot: String, val kUnknown: String,
+    val macLookup: String, val macLookupSub: String, val macLookupHint: String, val lookup: String,
+    val macNotFound: String, val invalidMac: String, val source: String, val country: String,
+    val randomMacInfo: String, val multicastMac: String,
 )
 
 val EN = Strings(
@@ -89,6 +92,12 @@ val EN = Strings(
         "NetSonar only talks to your own network, plus ipinfo.io (public IP), macvendors.com (manufacturer names) and GitHub (updates).",
     kRouter = "Router / network", kPhone = "Phone / tablet", kComputer = "Computer", kTv = "TV / media",
     kPrinter = "Printer", kCamera = "Camera", kIot = "Smart device", kUnknown = "Unknown",
+    macLookup = "MAC lookup", macLookupSub = "Who made this device? (IEEE database, works offline)",
+    macLookupHint = "e.g. 3C:22:FB:12:34:56", lookup = "Look up",
+    macNotFound = "Manufacturer not found", invalidMac = "Not a valid MAC address (12 hex digits)",
+    source = "Source", country = "Country",
+    randomMacInfo = "Private (random) MAC: the device hides its real MAC for privacy (phones, tablets, laptops). The manufacturer cannot be known.",
+    multicastMac = "Multicast / group address, not a single device",
 )
 
 val GR = Strings(
@@ -139,6 +148,12 @@ val GR = Strings(
         "Το NetSonar μιλά μόνο με το δικό σου δίκτυο, καθώς και με ipinfo.io (δημόσια IP), macvendors.com (κατασκευαστές) και GitHub (ενημερώσεις).",
     kRouter = "Router / δικτυακό", kPhone = "Κινητό / tablet", kComputer = "Υπολογιστής", kTv = "TV / πολυμέσα",
     kPrinter = "Εκτυπωτής", kCamera = "Κάμερα", kIot = "Έξυπνη συσκευή", kUnknown = "Άγνωστο",
+    macLookup = "Αναζήτηση MAC", macLookupSub = "Ποιος κατασκεύασε τη συσκευή; (βάση IEEE, χωρίς internet)",
+    macLookupHint = "π.χ. 3C:22:FB:12:34:56", lookup = "Αναζήτηση",
+    macNotFound = "Δεν βρέθηκε κατασκευαστής", invalidMac = "Μη έγκυρη MAC (χρειάζονται 12 δεκαεξαδικά ψηφία)",
+    source = "Πηγή", country = "Χώρα",
+    randomMacInfo = "Ιδιωτική (τυχαία) MAC: η συσκευή κρύβει την πραγματική της MAC για ιδιωτικότητα (κινητά, tablet, laptop). Ο κατασκευαστής δεν μπορεί να βρεθεί.",
+    multicastMac = "Διεύθυνση multicast / ομάδας, όχι μία συσκευή",
 )
 
 val LocalStrings = staticCompositionLocalOf { EN }

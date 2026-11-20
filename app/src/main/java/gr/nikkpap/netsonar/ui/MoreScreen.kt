@@ -22,6 +22,10 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.GetApp
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.AlertDialog
@@ -61,6 +65,7 @@ fun MoreScreen(vm: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { ScreenHeader(s.tabMore, s.settings) }
+        item { MacLookupCard(vm) }
 
         item {
             GlassCard {
@@ -198,4 +203,60 @@ fun UpdateDialog(vm: MainViewModel) {
             if (!downloading) TextButton(onClick = { vm.showUpdateDialog = false }) { Text(s.later) }
         },
     )
+}
+
+@Composable
+fun MacLookupCard(vm: MainViewModel, initial: String = "") {
+    val s = LocalStrings.current
+    var text by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(initial) }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    GlassCard {
+        SectionLabel(s.macLookup, Icons.Rounded.Search, Accent.amber)
+        Text(s.macLookupSub, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.size(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.OutlinedTextField(
+                value = text, onValueChange = { text = it.take(24) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(s.macLookupHint, fontFamily = Mono, fontSize = 13.sp) },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Mono, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { keyboard?.hide(); vm.lookupMac(text) }),
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = { keyboard?.hide(); vm.lookupMac(text) },
+                colors = ButtonDefaults.buttonColors(containerColor = Accent.amber, contentColor = Accent.ink),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                modifier = Modifier.height(56.dp),
+            ) { Icon(Icons.Rounded.Search, s.lookup) }
+        }
+        Spacer(Modifier.size(10.dp))
+        when {
+            vm.macBusy -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text(s.checking)
+            }
+            vm.macInvalid -> Text(s.invalidMac, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            vm.macResult != null -> {
+                val r = vm.macResult!!
+                Text(r.mac, fontFamily = Mono, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.size(4.dp))
+                when {
+                    r.vendor != null -> {
+                        Text(r.vendor, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                        r.country?.let { Text("${s.country}: $it", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text("${s.source}: ${if (r.source == "IEEE") "IEEE (offline)" else r.source}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    r.randomized -> Text(s.randomMacInfo, fontSize = 13.sp, color = Accent.amber)
+                    else -> Text(s.macNotFound, fontSize = 14.sp, color = MaterialTheme.colorScheme.error)
+                }
+                if (r.multicast) Text(s.multicastMac, fontSize = 12.sp, color = Accent.violet)
+            }
+        }
+    }
 }

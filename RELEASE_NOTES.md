@@ -1,4 +1,6 @@
-NetSonar v1.0.4
+NetSonar v1.0.5
+- Built-in IEEE manufacturer database (54,000 MAC prefixes, works offline) → instant manufacturer for every MAC
+- New MAC lookup tool (More tab): type a MAC → manufacturer, country, private/random MAC detection
 - Devices tab starts scanning automatically
 - Extra big SCAN / STOP button under the radar
 - Live scan log on the Devices screen (shows every step), version shown in header
