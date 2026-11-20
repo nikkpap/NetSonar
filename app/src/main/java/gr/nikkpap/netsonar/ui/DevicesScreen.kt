@@ -121,7 +121,7 @@ fun DevicesScreen(vm: MainViewModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item { ScreenHeader(s.tabDevices, s.devicesSubtitle) }
+        item { ScreenHeader(s.tabDevices, "${s.devicesSubtitle}  ·  v${gr.nikkpap.netsonar.BuildConfig.VERSION_NAME}") }
         item {
             Radar(all, vm.scanning, vm.progress) {
                 if (!vm.toggleScan()) Toast.makeText(ctx, s.noNetworkToScan, Toast.LENGTH_LONG).show()
@@ -146,6 +146,20 @@ fun DevicesScreen(vm: MainViewModel) {
                 }
                 if (!vm.scanning) vm.scanInfo?.let { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, fontFamily = Mono) }
                 vm.scanError?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
+            }
+        }
+        if (vm.scanLog.isNotEmpty()) item {
+            var open by rememberSaveable { mutableStateOf(true) }
+            GlassCard(Modifier.fillMaxWidth(), onClick = { open = !open }, padding = 12.dp) {
+                Text("Scan log (tap to ${if (open) "hide" else "show"})", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (open) {
+                    Spacer(Modifier.size(4.dp))
+                    vm.scanLog.takeLast(14).forEach { line ->
+                        Text(line, fontFamily = Mono, fontSize = 10.sp, lineHeight = 13.sp,
+                            color = if (line.contains("ERROR") || line.contains("Nothing")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         }
         item {

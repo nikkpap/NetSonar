@@ -153,13 +153,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     private var scanJob: Job? = null
 
+    /** Live, human-readable scan log shown on the Devices screen (troubleshooting). */
+    val scanLog = mutableStateListOf<String>()
+    private var t0 = 0L
+    private fun log(msg: String) {
+        val sec = if (t0 == 0L) 0.0 else (System.currentTimeMillis() - t0) / 1000.0
+        scanLog.add("%5.1fs  %s".format(Locale.US, sec, msg))
+        while (scanLog.size > 60) scanLog.removeAt(0)
+    }
+
     /** @return false when there is no Wi-Fi / LAN to scan. */
     fun toggleScan(): Boolean {
-        if (scanning) { scanJob?.cancel(); scanning = false; identifying = false; return true }
-        val snap = try { NetInfoReader.read(appCtx) } catch (_: Exception) { NetSnapshot(emptyList(), null) }
+        if (scanning) { scanJob?.cancel(); scanning = false; identifying = false; log("Stopped by user"); return true }
+        scanLog.clear(); t0 = System.currentTimeMillis()
+        log("v${BuildConfig.VERSION_NAME} · SCAN pressed")
+        val snap = try { NetInfoReader.read(appCtx) } catch (e: Exception) {
+            log("Network read error: ${e.javaClass.simpleName} ${e.message}"); NetSnapshot(emptyList(), null)
+        }
         snapshot = snap
+        log("Networks: " + snap.ifaces.joinToString { "${it.type}/${it.name}/${it.ipv4 ?: "no-IPv4"}" }.ifEmpty { "none" })
         val targets = snap.scannable
-        if (targets.isEmpty()) return false
+        if (targets.isEmpty()) { log("Nothing to scan: no Wi-Fi/LAN with IPv4"); return false }
+        targets.forEach { log("Target ${it.name} ${it.ipv4}/${it.prefix} gw ${it.gateway ?: "-"}") }
         startScan(targets)
         return true
     }
@@ -179,7 +194,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         launch {
                             scanner.scan(iface).collect { ev ->
                                 when (ev) {
-                                    is ScanEvent.Found -> upsert(ev.device)
+                                    is ScanEvent.Found -> {
+                                        upsert(ev.device)
+                                        val d = ev.device
+                                        log("+ ${d.ip}" + (if (d.isSelf) " (this phone)" else "") + (if (d.isGateway) " (router)" else "") +
+                                            (d.latencyMs?.let { " $it ms" } ?: "") + (if (d.openPorts.isNotEmpty()) " ports ${d.openPorts}" else ""))
+                                    }
                                     is ScanEvent.Progress -> {
                                         totals[idx] = ev.total; dones[idx] = ev.done
                                         progress = dones.sum().toFloat() / totals.sum().coerceAtLeast(1)
@@ -190,9 +210,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 progress = 1f
+                log("Sweep done: ${devices.size} devices · ping ${scanner.pingHits.get()} · tcp ${scanner.tcpHits.get()}" +
+                    (scanner.lastError?.let { " · last error: $it" } ?: ""))
 
                 // ARP (older Android / TV boxes) → MACs + hosts missed by the sweep
-                applyArp(scanner.readArp(), targets)
+                val arp1 = scanner.readArp()
+                log("Neighbour table: ${scanner.arpInfo}")
+                applyArp(arp1, targets)
 
                 // names + NetBIOS MACs
                 val netFor = targets.associate { (it.link ?: Link.LAN) to it.network }
@@ -211,12 +235,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 applyArp(scanner.readArp(), targets)
+                log("Done: ${devices.size} devices")
                 scanInfo = "$ifDesc · IPs ${totals.sum()} · ping ${scanner.pingHits.get()} · tcp ${scanner.tcpHits.get()} · ${scanner.arpInfo}" +
                     (scanner.lastError?.let { " · err: $it" } ?: "")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 scanError = e.javaClass.simpleName + ": " + (e.message ?: "")
+                log("ERROR $scanError")
             } finally {
                 scanning = false
             }

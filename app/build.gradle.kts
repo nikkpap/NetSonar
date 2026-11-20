@@ -24,11 +24,18 @@ android {
         applicationId = "gr.nikkpap.netsonar"
         minSdk = 24
         targetSdk = 29 // 29 = Android lets the app read the neighbour (ARP) table → all devices + MACs
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
     }
 
     signingConfigs {
+        // Shared debug key (not secret) → every debug APK installs over the previous one.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         val store = ks("storeFile", "NS_STORE_FILE")
         if (store != null) {
             create("release") {

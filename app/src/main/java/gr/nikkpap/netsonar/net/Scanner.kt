@@ -9,6 +9,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -123,7 +124,7 @@ class Scanner {
                 }
             }
         }.joinAll()
-    }
+    }.flowOn(Dispatchers.Default)
 
     private enum class Tcp { OPEN, REFUSED, NONE }
 
