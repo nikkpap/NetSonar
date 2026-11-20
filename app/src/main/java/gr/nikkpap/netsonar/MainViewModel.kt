@@ -249,6 +249,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
 
+                // web pages of devices (router / camera / NAS / Chromecast login pages tell what they are)
+                val webSem = Semaphore(8)
+                var webHits = 0
+                coroutineScope {
+                    devices.toList().filter { !it.isSelf && it.openPorts.any { p -> p in listOf(80, 8080, 8000, 8081, 5000, 8008) } }.forEach { d ->
+                        launch {
+                            webSem.withPermit {
+                                val w = scanner.httpInfo(d.ip, d.openPorts, netForLink(targets, d.link)) ?: return@withPermit
+                                webHits++
+                                modify(d) { cur ->
+                                    val upd = cur.copy(
+                                        hostname = cur.hostname ?: w.name,
+                                        model = cur.model ?: w.model,
+                                        vendor = cur.vendor ?: w.brand,
+                                    )
+                                    upd.copy(kind = Scanner.guessKind(upd))
+                                }
+                            }
+                        }
+                    }
+                }
+                log("Web pages: $webHits devices identified")
+
                 // names + NetBIOS MACs
                 val netFor = targets.associate { (it.link ?: Link.LAN) to it.network }
                 val sem = Semaphore(12)
@@ -300,6 +323,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    private fun netForLink(targets: List<IfaceInfo>, l: Link) = targets.firstOrNull { (it.link ?: Link.LAN) == l }?.network
 
     private fun applyArp(arp: Map<String, String>, targets: List<IfaceInfo>) {
         if (arp.isEmpty()) return

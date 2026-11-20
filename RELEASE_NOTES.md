@@ -1,4 +1,5 @@
-NetSonar v1.0.6
+NetSonar v1.0.7
+- Reads the web page of devices with a web interface (routers, cameras, NAS, printers, smart plugs, Chromecast) → name, model, brand
 - Devices now tell their own name, model and manufacturer (mDNS/Bonjour + UPnP): TVs, Chromecast, iPhones/Macs, printers, NAS, smart-home…
 - Finds devices that don't answer ping/ports but announce themselves
 - MAC for AirPlay devices and NAS/Linux (announced by the device)

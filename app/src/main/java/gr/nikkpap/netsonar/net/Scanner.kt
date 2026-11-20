@@ -238,6 +238,64 @@ class Scanner {
         }
     } catch (_: Exception) { null }
 
+    /** Web banner: page <title>, Server header, login realm, Chromecast info. */
+    data class WebInfo(val name: String?, val model: String?, val brand: String?)
+
+    private val BRANDS = listOf(
+        "TP-Link", "Tapo", "Huawei", "ZTE", "Nokia", "Technicolor", "Sagemcom", "Zyxel", "Netgear", "ASUS", "D-Link",
+        "Ubiquiti", "UniFi", "MikroTik", "Tenda", "Xiaomi", "Mi Router", "Linksys", "AVM", "FRITZ!Box", "Cisco",
+        "Hikvision", "Dahua", "Reolink", "EZVIZ", "Imou", "Axis", "Shelly", "Sonoff", "Tasmota", "ESPHome", "Tuya",
+        "Synology", "QNAP", "WD My Cloud", "Raspberry", "OctoPrint", "Home Assistant", "Philips Hue", "IKEA",
+        "Epson", "Canon", "Brother", "HP", "Kyocera", "Xerox", "Samsung", "LG", "Sony", "Panasonic", "Hisense", "TCL",
+        "Philips", "Sharp", "Roku", "Fire TV", "NVIDIA", "Kodi", "Plex", "Jellyfin", "Sonos", "Bose", "Denon", "Yamaha",
+        "Google", "Chromecast", "Nest", "Amazon", "Apple", "BleBox", "Broadlink", "Daikin", "Mitsubishi", "Vodafone", "COSMOTE", "Nova", "Wind",
+    )
+
+    suspend fun httpInfo(ip: String, ports: List<Int>, network: Network?): WebInfo? = withContext(Dispatchers.IO) {
+        var name: String? = null; var model: String? = null; var brand: String? = null
+        val blob = StringBuilder()
+        if (8008 in ports) try {
+            val j = org.json.JSONObject(get("http://$ip:8008/setup/eureka_info?params=name,device_info", network))
+            name = j.optString("name").ifBlank { null }
+            j.optJSONObject("device_info")?.let { di ->
+                model = di.optString("model_name").ifBlank { null }
+                brand = di.optString("manufacturer").ifBlank { null }
+            }
+        } catch (_: Exception) { }
+        for (port in listOf(80, 8080, 8000, 8081, 5000, 8008).filter { it in ports }) {
+            try {
+                val url = java.net.URL(if (port == 80) "http://$ip/" else "http://$ip:$port/")
+                val c = (if (network != null) network.openConnection(url) else url.openConnection()) as java.net.HttpURLConnection
+                c.connectTimeout = 1500; c.readTimeout = 2000; c.instanceFollowRedirects = true
+                c.setRequestProperty("User-Agent", "Mozilla/5.0 NetSonar")
+                val server = c.getHeaderField("Server")
+                val realm = c.getHeaderField("WWW-Authenticate")?.let { Regex("realm=\"?([^\",]+)").find(it)?.groupValues?.get(1) }
+                val body = try {
+                    (if (c.responseCode < 400) c.inputStream else c.errorStream)?.bufferedReader()?.use { r ->
+                        val cb = CharArray(65536); val n = r.read(cb); if (n > 0) String(cb, 0, n) else ""
+                    } ?: ""
+                } catch (_: Exception) { "" }
+                c.disconnect()
+                val title = Regex("<title[^>]*>\\s*([^<]{1,80}?)\\s*</title>", RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1)
+                    ?.replace(Regex("\\s+"), " ")?.takeIf { it.isNotBlank() && !it.contains("404") && !it.equals("index", true) }
+                blob.append(' ').append(title ?: "").append(' ').append(realm ?: "").append(' ').append(server ?: "")
+                if (model == null) model = title ?: realm ?: server?.takeIf { it.length < 60 }
+            } catch (_: Exception) { }
+        }
+        if (brand == null) {
+            val t = blob.toString()
+            brand = BRANDS.firstOrNull { Regex("\\b" + Regex.escape(it) + "\\b", RegexOption.IGNORE_CASE).containsMatchIn(t) }
+        }
+        if (name == null && model == null && brand == null) null else WebInfo(name, model, brand)
+    }
+
+    private fun get(u: String, network: Network?): String {
+        val url = java.net.URL(u)
+        val c = (if (network != null) network.openConnection(url) else url.openConnection()) as java.net.HttpURLConnection
+        c.connectTimeout = 1500; c.readTimeout = 2000
+        return try { c.inputStream.bufferedReader().use { it.readText() } } finally { c.disconnect() }
+    }
+
     /** ARP table (works on Android ≤ 9 and some TV boxes / rooted devices). */
     suspend fun readArp(): Map<String, String> = withContext(Dispatchers.IO) {
         val map = HashMap<String, String>()
