@@ -116,6 +116,11 @@ fun DevicesScreen(vm: MainViewModel) {
         add(Link.LAN)
     }
 
+    // For dummies: start scanning automatically the first time the tab opens.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!vm.hasScanned && !vm.scanning && !vm.toggleScan())
+            Toast.makeText(ctx, s.noNetworkToScan, Toast.LENGTH_LONG).show()
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -145,6 +150,20 @@ fun DevicesScreen(vm: MainViewModel) {
                     Text(s.identifying, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (!vm.scanning) vm.scanInfo?.let { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, fontFamily = Mono) }
+                Spacer(Modifier.size(10.dp))
+                androidx.compose.material3.Button(
+                    onClick = { if (!vm.toggleScan()) Toast.makeText(ctx, s.noNetworkToScan, Toast.LENGTH_LONG).show() },
+                    modifier = Modifier.fillMaxWidth(0.8f).height(52.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = if (vm.scanning) Accent.red else MaterialTheme.colorScheme.primary,
+                        contentColor = Accent.ink,
+                    ),
+                ) {
+                    Icon(if (vm.scanning) Icons.Rounded.Stop else Icons.Rounded.WifiTethering, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (vm.scanning) s.stop else s.scan, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.5.sp)
+                }
                 vm.scanError?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
             }
         }
